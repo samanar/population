@@ -11,10 +11,9 @@ class IranCityController extends Controller
     // reads population from populations table and tries to add them to current table
     public function merge()
     {
-        // $this->mergeProvinces();
-        // $this->mergeSections();
-        // $this->mergeUrbans();
-        // $this->mergeRemainingNulls();
+        $this->mergeProvinces();
+        $this->mergeSections();
+        $this->mergeUrbans();
         $this->mergeNullsWithPercent();
     }
 
@@ -83,52 +82,7 @@ class IranCityController extends Controller
         }
     }
 
-    public function mergeRemainingNulls()
-    {
-        $withouts = IranCity::whereNull('population')->get();
-        foreach ($withouts as $without) {
-            switch ($without->type) {
-                case 'استان':
-                    break;
-                case 'شهرستان':
-                    $population = $this->removeFirstSpaceCity($without);
-                    if ($population) {
-                        $without->population = $population->population;
-                        $without->save();
-                    } else {
-                        $population = $this->removeLastSpaceCity($without);
-                        if ($population) {
-                            $without->population = $population->population;
-                            $without->save();
-                        }
-                    }
-                    break;
-                case 'منطقه':
-                    $population = $this->removeFirstSpaceAll($without);
-                    if ($population) {
-                        $without->population = $population->population;
-                        $without->save();
-                    } else {
-                        $population = $this->removeFirstSpaceRural($without);
-                        if ($population) {
-                            $without->population = $population->population;
-                            $without->save();
-                        } else {
-                            $population = $this->removeLastSpaceAll($without);
-                            if ($population) {
-                                $without->population = $population->population;
-                                $without->save();
-                            }
-                        }
-                    }
-                    break;
-                default:
-                    break;
-            }
-
-        }
-    }
-
+   
     public function mergeNullsWithPercent()
     {
         $withouts = IranCity::whereNull('population')->get();
@@ -148,68 +102,11 @@ class IranCityController extends Controller
         die();
     }
 
-    private function removeFirstSpaceCity($without)
-    {
-        $province = IranCity::find($without->parent_id);
-        return Population::whereProvince($province->name)->where(function ($q) use ($without) {
-            $q->where('section_1', $this->removeSpace($without->name));
-            $q->orWhere('section_2', $this->removeSpace($without->name));
-        })->first();
-    }
-
-    private function removeFirstSpaceAll($without)
-    {
-        $city = IranCity::find($without->parent_id);
-        $province = IranCity::find($city->parent_id);
-        return Population::whereProvince($province->name)->where(function ($q) use ($city) {
-            $q->where('section_1', $this->removeSpace($city->name));
-            $q->orWhere('section_2', $this->removeSpace($city->name));
-        })->where(function ($q) use ($without) {
-            $q->whereUrban($this->removeSpace($without->name));
-            $q->orWhere('rural', $this->removeSpace($without->name));
-        })->first();
-    }
-
-    private function removeLastSpaceAll($without)
-    {
-        $city = IranCity::find($without->parent_id);
-        $province = IranCity::find($city->parent_id);
-        return Population::whereProvince($province->name)->where(function ($q) use ($city) {
-            $q->where('section_1', $this->removeLastSpace($city->name));
-            $q->orWhere('section_2', $this->removeLastSpace($city->name));
-        })->where(function ($q) use ($without) {
-            $q->whereUrban($this->removeSpace($without->name));
-            $q->orWhere('rural', $this->removeSpace($without->name));
-        })->first();
-    }
-
-    private function removeFirstSpaceRural($without)
-    {
-        $city = IranCity::find($without->parent_id);
-        $province = IranCity::find($city->parent_id);
-        $population = Population::whereProvince($province->name)->where(function ($q) use ($city) {
-            $q->where('section_1', $city->name);
-            $q->orWhere('section_2', $city->name);
-        })->where(function ($q) use ($without) {
-            $q->whereUrban($this->removeSpace($without->name));
-            $q->orWhere('rural', $this->removeSpace($without->name));
-        })->first();
-    }
-
-    private function removeLastSpaceCity($without)
-    {
-        $province = IranCity::find($without->parent_id);
-        return Population::whereProvince($province->name)->where(function ($q) use ($without) {
-            $q->where('section_1', $this->removeLastSpace($without->name));
-            $q->orWhere('section_2', $this->removeLastSpace($without->name));
-        })->first();
-    }
-
     public function findFavorites()
     {
         $this->setUpperLayersFavorite();
         $this->findFavoritesByLawyers();
-        $this->findFavoritesByPopulation(5000);
+        $this->findFavoritesByPopulation(100000);
         // $this->notFound();
         return 'done';
     }
@@ -253,11 +150,6 @@ class IranCityController extends Controller
 
     }
 
-    private function fix_names()
-    {
-        // $name_city_new = $fix_city_collection->where('city_id', $citiy_DS->city_id)->first();
-    }
-
     private function setUpperLayersFavorite()
     {
         IranCity::where('type', '!=', 'منطقه')->update(['favorite' => 1]);
@@ -271,40 +163,6 @@ class IranCityController extends Controller
         IranCity::whereType('منطقه')->where('population', '>', $minPopulation)->update(['favorite' => 2]);
     }
 
-    private function removeSpace($string)
-    {
-        // return str_replace(' ', '', $string);
-        $pos = strpos($string, ' ');
-        if ($pos !== false) {
-            return substr_replace($string, '', $pos, 1);
-        }
-        return $string;
-    }
-    private function removeLastSpace($string)
-    {
-        // return str_replace(' ', '', $string);
-        $pos = strrpos($string, ' ');
-        if ($pos !== false) {
-            return substr_replace($string, '', $pos, 1);
-        }
-        return $string;
-    }
-
-    private function fix_city_collection()
-    {
-        return collect([
-            [
-                'name' => 'امامزاده عبدلله',
-                'replace' => 'امامزاده عبدالله',
-            ],
-            [
-                'name' => 'اباده طشت',
-                'replace' => 'اباده طشک',
-            ],
-
-
-        ]);
-    }
 
     private function turnSpaceToPercent($string)
     {
@@ -323,8 +181,6 @@ class IranCityController extends Controller
                 if ($population) {
                     $without->population = $population->population;
                     $without->save();
-                    // logger('شهرستان', $population->toArray());
-                    // dd($population->toArray());
                     return true;
                 } else {
                     logger('شهرستان', $without->toArray());
@@ -343,11 +199,9 @@ class IranCityController extends Controller
                     $q->where('urban', 'like', $this->turnSpaceToPercent($without->name));
                     $q->orWhere('rural', 'like', $this->turnSpaceToPercent($without->name));
                 })->first();
-                // dd($population->first());
                 if ($population) {
                     $without->population = $population->population;
                     $without->save();
-                    // logger('منطقه', $population->toArray());
                     return true;
                 } else {
                     logger('منطقه', $without->toArray());

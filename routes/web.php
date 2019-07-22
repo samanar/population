@@ -23,3 +23,4 @@ Route::get('population/convert', 'PopulationController@convert');
 
 Route::get('merge', 'IranCityController@merge');
 Route::get('favorites', 'IranCityController@findFavorites');
+Route::get('add', 'PopulationController@addCitiesToDadsun');
